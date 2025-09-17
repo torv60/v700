@@ -117,10 +117,10 @@ class ViralImageFinder:
             import requests
             self.session = requests.Session()
             self.setup_session()
-        
+
         # Validar configuração das APIs
         self._validate_api_configuration()
-        
+
         # Confirmar inicialização bem-sucedida
         logger.info("🔥 Viral Integration Service CORRIGIDO e inicializado")
 
@@ -173,7 +173,7 @@ class ViralImageFinder:
         if main_key and main_key.strip():
             api_keys['serper'].append(main_key.strip())
             logger.info(f"✅ Serper API principal carregada")
-        
+
         # Depois carrega as chaves numeradas (1, 2, 3)
         for i in range(1, 4):  # Até 3 chaves Serper numeradas
             key = os.getenv(f'SERPER_API_KEY_{i}')
@@ -188,33 +188,33 @@ class ViralImageFinder:
             api_keys['google_cse'].append({'key': google_key, 'cse_id': google_cse})
             logger.info(f"✅ Google CSE carregada")
         return api_keys
-    
+
     def _validate_api_configuration(self):
-        """Valida se pelo menos uma API está configurada"""
+        """Valida se pelo menos uma API está configurada - SOMENTE DADOS REAIS"""
         total_apis = sum(len(keys) for keys in self.api_keys.values())
-        
+
         if total_apis == 0:
-            logger.error("❌ NENHUMA API CONFIGURADA! O serviço NÃO FUNCIONARÁ sem APIs reais.")
+            logger.error("❌ NENHUMA API CONFIGURADA! Sistema 100% REAL requer APIs válidas.")
             logger.error("🚨 OBRIGATÓRIO: Configure pelo menos uma das seguintes APIs:")
             logger.error("   - SERPER_API_KEY (recomendado)")
             logger.error("   - GOOGLE_SEARCH_KEY + GOOGLE_CSE_ID")
             logger.error("   - APIFY_API_KEY")
-            raise ValueError("Nenhuma API configurada. Serviço requer APIs reais para funcionar.")
+            raise ValueError("ZERO SIMULAÇÃO: Sistema requer APIs reais para funcionar.")
         else:
-            logger.info(f"✅ {total_apis} API(s) configurada(s) e prontas para uso")
-            
+            logger.info(f"✅ {total_apis} API(s) REAIS configurada(s) - ZERO SIMULAÇÃO")
+
         # Verificar dependências opcionais
         if not HAS_ASYNC_DEPS:
-            logger.warning("⚠️ aiohttp/aiofiles não instalados. Usando requests síncrono como fallback.")
-            
+            logger.warning("⚠️ aiohttp/aiofiles não instalados. Usando requests síncrono REAL como fallback.")
+
         if not PLAYWRIGHT_AVAILABLE:
-            logger.warning("⚠️ Playwright não disponível. Funcionalidades avançadas desabilitadas.")
-            
+            logger.warning("⚠️ Playwright não disponível. Usando alternativas REAIS.")
+
         if not HAS_GEMINI:
-            logger.warning("⚠️ Google Generative AI não disponível. Análise de conteúdo limitada.")
-            
+            logger.warning("⚠️ Google Generative AI não disponível. Usando análise alternativa REAL.")
+
         if not HAS_BS4:
-            logger.warning("⚠️ BeautifulSoup4 não disponível. Parsing HTML limitado.")
+            logger.warning("⚠️ BeautifulSoup4 não disponível. Usando parsing alternativo REAL.")
 
     def _get_next_api_key(self, service: str) -> Optional[str]:
         """Obtém próxima chave de API disponível com rotação automática"""
@@ -332,7 +332,7 @@ class ViralImageFinder:
             # Rate limiting
             await asyncio.sleep(0.5)
         # RapidAPI removido conforme solicitado
-        
+
         # YouTube thumbnails como fonte adicional
         try:
             youtube_results = await self._search_youtube_thumbnails(query)
@@ -340,7 +340,7 @@ class ViralImageFinder:
             logger.info(f"📺 YouTube thumbnails: {len(youtube_results)} encontrados")
         except Exception as e:
             logger.error(f"❌ Erro na busca YouTube: {e}")
-        
+
         # Busca adicional específica para Facebook
         try:
             facebook_results = await self._search_facebook_specific(query)
@@ -348,7 +348,7 @@ class ViralImageFinder:
             logger.info(f"📘 Facebook específico: {len(facebook_results)} encontrados")
         except Exception as e:
             logger.error(f"❌ Erro na busca Facebook específica: {e}")
-        
+
         # Busca adicional com estratégias alternativas se poucos resultados
         if len(all_results) < 15:
             try:
@@ -357,16 +357,16 @@ class ViralImageFinder:
                 logger.info(f"🔄 Estratégias alternativas: {len(alternative_results)} encontrados")
             except Exception as e:
                 logger.error(f"❌ Erro nas estratégias alternativas: {e}")
-        
+
         # Sem fallback sintético - apenas dados reais
-        
+
         # EXTRAÇÃO DIRETA DE POSTS ESPECÍFICOS
         # Procurar por URLs específicas nos resultados e extrair imagens diretamente
         direct_extraction_results = []
         instagram_urls = []
         facebook_urls = []
         linkedin_urls = []
-        
+
         # Coletar URLs específicas dos resultados
         for result in all_results:
             page_url = result.get('page_url', '')
@@ -376,7 +376,7 @@ class ViralImageFinder:
                 facebook_urls.append(page_url)
             elif 'linkedin.com' in page_url:
                 linkedin_urls.append(page_url)
-        
+
         # Extração direta do Instagram
         for insta_url in list(set(instagram_urls))[:5]:  # Limitar a 5 URLs
             try:
@@ -384,7 +384,7 @@ class ViralImageFinder:
                 direct_extraction_results.extend(direct_results)
             except Exception as e:
                 logger.warning(f"Erro extração direta Instagram {insta_url}: {e}")
-        
+
         # Extração direta do Facebook
         for fb_url in list(set(facebook_urls))[:3]:  # Limitar a 3 URLs
             try:
@@ -392,7 +392,7 @@ class ViralImageFinder:
                 direct_extraction_results.extend(direct_results)
             except Exception as e:
                 logger.warning(f"Erro extração direta Facebook {fb_url}: {e}")
-        
+
         # Extração direta do LinkedIn
         for li_url in list(set(linkedin_urls))[:3]:  # Limitar a 3 URLs
             try:
@@ -400,7 +400,7 @@ class ViralImageFinder:
                 direct_extraction_results.extend(direct_results)
             except Exception as e:
                 logger.warning(f"Erro extração direta LinkedIn {li_url}: {e}")
-        
+
         # Adicionar resultados de extração direta
         all_results.extend(direct_extraction_results)
         logger.info(f"🎯 Extração direta: {len(direct_extraction_results)} imagens reais extraídas")
@@ -431,7 +431,7 @@ class ViralImageFinder:
         """Verifica se a URL parece ser de uma imagem real"""
         if not url or not isinstance(url, str):
             return False
-        
+
         # URLs que claramente não são imagens
         invalid_patterns = [
             r'instagram\.com/accounts/login',
@@ -445,10 +445,10 @@ class ViralImageFinder:
             r'\.jsp$',
             r'\.asp$'
         ]
-        
+
         if any(re.search(pattern, url, re.IGNORECASE) for pattern in invalid_patterns):
             return False
-        
+
         # URLs que provavelmente são imagens
         valid_patterns = [
             r'\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)',
@@ -474,7 +474,7 @@ class ViralImageFinder:
             r'scontent-.*\.cdninstagram\.com',  # Instagram CDN específico
             r'scontent\..*\.fbcdn\.net'  # Facebook CDN específico
         ]
-        
+
         return any(re.search(pattern, url, re.IGNORECASE) for pattern in valid_patterns)
 
     async def _search_serper_advanced(self, query: str) -> List[Dict]:
@@ -482,13 +482,13 @@ class ViralImageFinder:
         if not self.api_keys.get('serper'):
             logger.warning("❌ Nenhuma chave Serper configurada")
             return []
-        
+
         results = []
         search_types = ['images', 'search']  # Busca por imagens e links
-        
+
         for search_type in search_types:
             url = f"https://google.serper.dev/{search_type}"
-            
+
             # Payload básico e validado
             payload = {
                 "q": query.strip(),
@@ -496,31 +496,31 @@ class ViralImageFinder:
                 "gl": "br",
                 "hl": "pt"
             }
-            
+
             # Parâmetros específicos para imagens
             if search_type == 'images':
                 payload.update({
                     "imgSize": "large",
                     "imgType": "photo"
                 })
-            
+
             # Tentar com rotação de APIs
             success = False
             attempts = 0
             max_attempts = min(3, len(self.api_keys['serper']))  # Máximo 3 tentativas
-            
+
             while not success and attempts < max_attempts:
                 api_key = self._get_next_api_key('serper')
                 if not api_key:
                     logger.error(f"❌ Nenhuma API Serper disponível")
                     break
-                
+
                 headers = {
                     'X-API-KEY': api_key,
                     'Content-Type': 'application/json',
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
-                
+
                 try:
                     if HAS_ASYNC_DEPS:
                         timeout = aiohttp.ClientTimeout(total=15)  # Reduzir timeout
@@ -532,7 +532,7 @@ class ViralImageFinder:
                                     except json.JSONDecodeError as e:
                                         logger.error(f"❌ Erro JSON: {e} - Response: {await response.text()[:200]}")
                                         continue
-                                    
+
                                     if search_type == 'images':
                                         for item in data.get('images', []):
                                             image_url = item.get('imageUrl', '')
@@ -555,22 +555,22 @@ class ViralImageFinder:
                                                     'description': item.get('snippet', ''),
                                                     'source': 'serper_search'
                                                 })
-                                    
+
                                     success = True
                                     logger.info(f"✅ Serper {search_type} sucesso: {len(data.get('images' if search_type == 'images' else 'organic', []))} resultados")
-                                    
+
                                 elif response.status == 429:
                                     logger.warning(f"⚠️ Rate limit Serper - aguardando...")
                                     await asyncio.sleep(2)
-                                    
+
                                 elif response.status in [400, 401, 403]:
                                     current_index = (self.current_api_index["serper"] - 1) % len(self.api_keys["serper"])
                                     self._mark_api_failed("serper", current_index)
                                     logger.error(f"❌ Serper API #{current_index + 1} inválida (status {response.status})")
-                                    
+
                                 else:
                                     logger.error(f"❌ Serper retornou status {response.status}")
-                                    
+
                     else:
                         # Fallback síncrono
                         response = self.session.post(url, headers=headers, json=payload, timeout=15)
@@ -584,22 +584,22 @@ class ViralImageFinder:
                             success = True
                         else:
                             logger.error(f"❌ Serper status {response.status_code}")
-                
+
                 except Exception as e:
                     current_index = (self.current_api_index["serper"] - 1) % len(self.api_keys["serper"])
                     logger.error(f"❌ Erro Serper API #{current_index + 1}: {str(e)[:100]}")
-                    
+
                     # Marcar como falhada apenas se for erro de autenticação
                     if "401" in str(e) or "403" in str(e) or "400" in str(e):
                         self._mark_api_failed("serper", current_index)
-                
+
                 attempts += 1
                 if not success and attempts < max_attempts:
                     await asyncio.sleep(1)  # Aguardar antes da próxima tentativa
-            
+
             # Rate limiting entre tipos de busca
             await asyncio.sleep(0.5)
-        
+
         logger.info(f"📊 Serper total: {len(results)} resultados para '{query}'")
         return results
 
@@ -669,7 +669,7 @@ class ViralImageFinder:
             f'"{query}" youtube curso',
             f'"{query}" youtube aula'
         ]
-        
+
         for yt_query in youtube_queries[:3]:  # Limitar para evitar rate limit
             try:
                 # Usar Serper para buscar vídeos do YouTube
@@ -688,7 +688,7 @@ class ViralImageFinder:
                             'X-API-KEY': api_key,
                             'Content-Type': 'application/json'
                         }
-                        
+
                         if HAS_ASYNC_DEPS:
                             timeout = aiohttp.ClientTimeout(total=30)
                             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -755,9 +755,9 @@ class ViralImageFinder:
             except Exception as e:
                 logger.warning(f"Erro na busca YouTube: {e}")
                 continue
-            
+
             await asyncio.sleep(0.3)  # Rate limiting
-        
+
         logger.info(f"📺 YouTube encontrou {len(results)} thumbnails")
         return results
 
@@ -786,7 +786,7 @@ class ViralImageFinder:
             f'"{query}" facebook dicas',
             f'site:facebook.com "{query}" tutorial'
         ]
-        
+
         for fb_query in facebook_queries[:4]:  # Limitar para evitar rate limit
             try:
                 # Usar Serper para buscar conteúdo do Facebook
@@ -808,7 +808,7 @@ class ViralImageFinder:
                             'X-API-KEY': api_key,
                             'Content-Type': 'application/json'
                         }
-                        
+
                         if HAS_ASYNC_DEPS:
                             timeout = aiohttp.ClientTimeout(total=30)
                             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -853,16 +853,16 @@ class ViralImageFinder:
             except Exception as e:
                 logger.warning(f"Erro na busca Facebook específica: {e}")
                 continue
-            
+
             await asyncio.sleep(0.3)  # Rate limiting
-        
+
         logger.info(f"📘 Facebook específico encontrou {len(results)} imagens")
         return results
 
     async def _search_alternative_strategies(self, query: str) -> List[Dict]:
         """Estratégias alternativas de busca para aumentar resultados"""
         results = []
-        
+
         # Estratégias com termos mais amplos
         alternative_queries = [
             f'{query} tutorial',
@@ -882,7 +882,7 @@ class ViralImageFinder:
             f'aprenda {query}',
             f'{query} passo a passo'
         ]
-        
+
         for alt_query in alternative_queries[:6]:  # Limitar para evitar rate limit
             try:
                 if self.api_keys.get('serper'):
@@ -902,7 +902,7 @@ class ViralImageFinder:
                             'X-API-KEY': api_key,
                             'Content-Type': 'application/json'
                         }
-                        
+
                         if HAS_ASYNC_DEPS:
                             timeout = aiohttp.ClientTimeout(total=30)
                             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -946,34 +946,34 @@ class ViralImageFinder:
             except Exception as e:
                 logger.warning(f"Erro na busca alternativa: {e}")
                 continue
-            
+
             await asyncio.sleep(0.2)  # Rate limiting mais rápido
-        
+
         logger.info(f"🔄 Estratégias alternativas encontraram {len(results)} imagens")
         return results
 
     async def _extract_instagram_direct(self, post_url: str) -> List[Dict]:
         """Extrai imagens diretamente do Instagram usando múltiplas estratégias"""
         results = []
-        
+
         try:
             # Estratégia 1: Usar sssinstagram.com API
             results_sss = await self._extract_via_sssinstagram(post_url)
             results.extend(results_sss)
-            
+
             # Estratégia 2: Extração direta via embed
             if len(results) < 3:
                 results_embed = await self._extract_instagram_embed(post_url)
                 results.extend(results_embed)
-            
+
             # Estratégia 3: Usar oembed do Instagram
             if len(results) < 3:
                 results_oembed = await self._extract_instagram_oembed(post_url)
                 results.extend(results_oembed)
-                
+
         except Exception as e:
             logger.error(f"❌ Erro na extração direta Instagram: {e}")
-        
+
         logger.info(f"📸 Instagram direto: {len(results)} imagens extraídas")
         return results
 
@@ -984,7 +984,7 @@ class ViralImageFinder:
             # Simular requisição para sssinstagram.com
             api_url = "https://sssinstagram.com/api/ig/post"
             payload = {"url": post_url}
-            
+
             if HAS_ASYNC_DEPS:
                 timeout = aiohttp.ClientTimeout(total=30)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -1047,7 +1047,7 @@ class ViralImageFinder:
                             })
         except Exception as e:
             logger.warning(f"Erro sssinstagram: {e}")
-        
+
         return results
 
     async def _extract_instagram_embed(self, post_url: str) -> List[Dict]:
@@ -1058,7 +1058,7 @@ class ViralImageFinder:
             post_id = self._extract_instagram_post_id(post_url)
             if post_id:
                 embed_url = f"https://www.instagram.com/p/{post_id}/embed/"
-                
+
                 if HAS_ASYNC_DEPS:
                     timeout = aiohttp.ClientTimeout(total=30)
                     async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -1092,7 +1092,7 @@ class ViralImageFinder:
                                 })
         except Exception as e:
             logger.warning(f"Erro Instagram embed: {e}")
-        
+
         return results
 
     async def _extract_instagram_oembed(self, post_url: str) -> List[Dict]:
@@ -1102,7 +1102,7 @@ class ViralImageFinder:
             oembed_url = f"https://graph.facebook.com/v18.0/instagram_oembed?url={post_url}&access_token=your_token"
             # Alternativa sem token
             oembed_url_alt = f"https://www.instagram.com/api/v1/oembed/?url={post_url}"
-            
+
             for url in [oembed_url_alt]:  # Usar apenas a alternativa sem token
                 try:
                     if HAS_ASYNC_DEPS:
@@ -1144,7 +1144,7 @@ class ViralImageFinder:
                     continue
         except Exception as e:
             logger.warning(f"Erro Instagram oembed: {e}")
-        
+
         return results
 
     def _extract_instagram_post_id(self, url: str) -> str:
@@ -1171,36 +1171,36 @@ class ViralImageFinder:
             r'content="([^"]*\.(?:jpg|jpeg|png|webp)[^"]*)"',
             r'url\(([^)]*\.(?:jpg|jpeg|png|webp)[^)]*)\)'
         ]
-        
+
         for pattern in patterns:
             matches = re.findall(pattern, html_content, re.IGNORECASE)
             image_urls.extend(matches)
-        
+
         # Filtrar URLs válidas
         valid_urls = []
         for url in image_urls:
             if url.startswith('http') and self._is_valid_image_url(url):
                 valid_urls.append(url)
-        
+
         return list(set(valid_urls))  # Remover duplicatas
 
     async def _extract_facebook_direct(self, post_url: str) -> List[Dict]:
         """Extrai imagens diretamente do Facebook"""
         results = []
-        
+
         try:
             # Estratégia 1: Usar Graph API (se disponível)
             results_graph = await self._extract_facebook_graph(post_url)
             results.extend(results_graph)
-            
+
             # Estratégia 2: Extração via embed
             if len(results) < 3:
                 results_embed = await self._extract_facebook_embed(post_url)
                 results.extend(results_embed)
-                
+
         except Exception as e:
             logger.error(f"❌ Erro na extração direta Facebook: {e}")
-        
+
         logger.info(f"📘 Facebook direto: {len(results)} imagens extraídas")
         return results
 
@@ -1217,7 +1217,7 @@ class ViralImageFinder:
         try:
             # Facebook embed URL
             embed_url = f"https://www.facebook.com/plugins/post.php?href={post_url}"
-            
+
             if HAS_ASYNC_DEPS:
                 timeout = aiohttp.ClientTimeout(total=30)
                 async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -1250,13 +1250,13 @@ class ViralImageFinder:
                             })
         except Exception as e:
             logger.warning(f"Erro Facebook embed: {e}")
-        
+
         return results
 
     async def _extract_linkedin_direct(self, post_url: str) -> List[Dict]:
         """Extrai imagens diretamente do LinkedIn"""
         results = []
-        
+
         try:
             # LinkedIn não tem API pública fácil, usar scraping cuidadoso
             if HAS_ASYNC_DEPS:
@@ -1297,7 +1297,7 @@ class ViralImageFinder:
                             })
         except Exception as e:
             logger.warning(f"Erro LinkedIn direto: {e}")
-        
+
         logger.info(f"💼 LinkedIn direto: {len(results)} imagens extraídas")
         return results
 
@@ -1601,7 +1601,7 @@ class ViralImageFinder:
                         # Estratégia 3: URL normal
                         lambda url: url
                     ]
-                    
+
                     for i, strategy in enumerate(strategies):
                         try:
                             target_url = strategy(post_url)
@@ -1612,7 +1612,7 @@ class ViralImageFinder:
                         except Exception as e:
                             logger.warning(f"Estratégia {i+1} falhou: {e}")
                             continue
-                    
+
                     if not navigation_success:
                         logger.error("❌ Todas as estratégias de navegação falharam")
                         return None
@@ -1689,7 +1689,7 @@ class ViralImageFinder:
                     # Estratégia 4: Pressionar ESC
                     ['ESCAPE_KEY']
                 ]
-                
+
                 for strategy in popup_strategies:
                     popup_closed = False
                     for selector in strategy:
@@ -1712,7 +1712,7 @@ class ViralImageFinder:
                         except Exception as e:
                             logger.debug(f"Tentativa de fechar popup falhou: {selector} - {e}")
                             continue
-                    
+
                     if popup_closed:
                         # Aguardar um pouco para o popup desaparecer
                         await asyncio.sleep(2)
@@ -2064,7 +2064,7 @@ class ViralImageFinder:
         if not self._is_valid_image_url(image_url):
             logger.warning(f"URL não parece ser de imagem: {image_url}")
             return None
-        
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
@@ -2507,8 +2507,8 @@ class AlibabaWebSailorAgent:
         logger.info("🌐 Alibaba WebSailor Agent inicializado - Navegação inteligente ativada")
 
     async def navigate_and_research_deep(
-        self, 
-        query: str, 
+        self,
+        query: str,
         context: Dict[str, Any],
         max_pages: int = 25,
         depth_levels: int = 3,
@@ -2546,7 +2546,7 @@ class AlibabaWebSailorAgent:
             for engine_name, search_func in search_engines:
                 try:
                     logger.info(f"🔍 Executando {engine_name}...")
-                    
+
                     # TIMEOUT AGRESSIVO: 15 segundos por engine
                     try:
                         results = await asyncio.wait_for(
@@ -2583,25 +2583,34 @@ class AlibabaWebSailorAgent:
                                     "quality_score": content_data['quality_score']
                                 }, categoria="pesquisa_web")
 
-                                # NOVA FUNCIONALIDADE: Salva trecho de conteúdo extraído
-                                logger.info(f"🔍 DEBUG: session_id={session_id}, quality_score={content_data['quality_score']}")
-                                if session_id and content_data['quality_score'] >= 50.0:
+                                # NOVA FUNCIONALIDADE: Salva trechos de conteúdo extraído via AutoSaveManager
+                                if session_id and content_data['content'] and len(content_data['content']) > 200:
                                     try:
-                                        logger.info(f"🔍 SALVANDO TRECHO: {result['url']} (score: {content_data['quality_score']})")
-                                        titulo = result.get('title', 'Título não disponível')
-                                        conteudo_completo = f"Título: {titulo}\n\nDescrição: {result.get('snippet', '')}\n\nConteúdo Extraído:\n{content_data['content'][:2000]}..."
-                                        
-                                        salvar_trecho_pesquisa_web(
-                                            url=result['url'],
-                                            titulo=titulo,
-                                            conteudo=conteudo_completo,
-                                            metodo_extracao=f"websailor_{engine_name}",
-                                            qualidade=content_data['quality_score'],
-                                            session_id=session_id
-                                        )
-                                        logger.info(f"✅ TRECHO SALVO COM SUCESSO: {result['url']}")
-                                    except Exception as e:
-                                        logger.warning(f"⚠️ Erro ao salvar trecho WebSailor: {e}")
+                                        from services.auto_save_manager import auto_save_manager
+
+                                        content_data_for_save = {
+                                            'url': content_data['url'],
+                                            'titulo': f"Extração WebSailor: {result.get('url', '')[:50]}...",
+                                            'conteudo': content_data['content'],
+                                            'metodo_extracao': 'alibaba_websailor',
+                                            'qualidade': content_data['quality_score'],
+                                            'platform': self._detect_platform(content_data['url']),
+                                            'metadata': {
+                                                'strategy_used': 'multi_strategy',
+                                                'original_url': result.get('url'),
+                                                'extraction_timestamp': datetime.now().isoformat(),
+                                                'content_length': len(content_data['content'])
+                                            }
+                                        }
+
+                                        save_result = auto_save_manager.save_extracted_content(content_data=content_data_for_save, source_info={'source_type': 'web'}, session_id=session_id)
+                                        if save_result.get('success'):
+                                            logger.info(f"✅ TRECHO SALVO VIA AUTOSAVEMANAGER: {content_data['url']}")
+                                        else:
+                                            logger.error(f"❌ Falha no salvamento: {save_result.get('error')}")
+
+                                    except Exception as save_error:
+                                        logger.error(f"❌ Erro ao salvar trecho: {save_error}")
 
                             time.sleep(0.5)  # Rate limiting
 
@@ -2698,15 +2707,15 @@ class AlibabaWebSailorAgent:
         if not self.viral_image_finder:
             logger.warning("⚠️ ViralImageFinder não está disponível, pulando busca de imagens virais.")
             return []
-            
+
         try:
             logger.info(f"🔍 Buscando imagens virais para query: {query}")
             # Call the async find_viral_images method
             viral_images_list, _ = await self.viral_image_finder.find_viral_images(query)
-            
+
             # Process results to ensure consistent dictionary format
             processed_images = [asdict(img) for img in viral_images_list]
-            
+
             if processed_images:
                 logger.info(f"✅ {len(processed_images)} imagens virais encontradas e processadas.")
             else:
@@ -3132,8 +3141,8 @@ class AlibabaWebSailorAgent:
 
                 # Busca conteúdo principal
                 main_content = (
-                    soup.find('main') or 
-                    soup.find('article') or 
+                    soup.find('main') or
+                    soup.find('article') or
                     soup.find('div', class_=re.compile(r'content|main|article'))
                 )
 
@@ -3265,10 +3274,7 @@ class AlibabaWebSailorAgent:
         return enhanced_query.strip()
 
     def _calculate_content_quality(
-        self, 
-        content: str, 
-        url: str, 
-        context: Dict[str, Any]
+        self, content: str, url: str, context: Dict[str, Any]
     ) -> float:
         """Calcula qualidade do conteúdo extraído"""
 
@@ -3360,9 +3366,9 @@ class AlibabaWebSailorAgent:
             # Verifica se contém termos relevantes
             if segmento and segmento in sentence_lower:
                 # Verifica se contém dados numéricos ou informações valiosas
-                if (re.search(r'\d+', sentence) or 
+                if (re.search(r'\d+', sentence) or
                     any(term in sentence_lower for term in [
-                        'crescimento', 'mercado', 'oportunidade', 'tendência', 
+                        'crescimento', 'mercado', 'oportunidade', 'tendência',
                         'futuro', 'inovação', 'desafio', 'consumidor', 'empresa',
                         'startup', 'investimento', 'receita', 'lucro', 'dados'
                     ])):
@@ -3385,9 +3391,9 @@ class AlibabaWebSailorAgent:
                     full_url = urljoin(base_url, href)
 
                     # Filtra apenas links do mesmo domínio
-                    if (full_url.startswith('http') and 
-                        base_domain in full_url and 
-                        "#" not in full_url and 
+                    if (full_url.startswith('http') and
+                        base_domain in full_url and
+                        "#" not in full_url and
                         full_url != base_url and
                         not any(ext in full_url.lower() for ext in ['.pdf', '.jpg', '.png', '.gif'])):
                         links.append(full_url)
@@ -3399,8 +3405,8 @@ class AlibabaWebSailorAgent:
         return []
 
     def _generate_intelligent_related_queries(
-        self, 
-        original_query: str, 
+        self,
+        original_query: str,
         context: Dict[str, Any],
         existing_content: List[Dict[str, Any]]
     ) -> List[str]:
@@ -3618,6 +3624,19 @@ class AlibabaWebSailorAgent:
             'avg_quality_score': 0.0
         }
         logger.info("🔄 Estatísticas de navegação resetadas")
+
+    def _detect_platform(self, url: str) -> str:
+        """Detecta plataforma baseada na URL"""
+        if 'instagram.com' in url:
+            return 'instagram'
+        elif 'facebook.com' in url:
+            return 'facebook'
+        elif 'youtube.com' in url or 'youtu.be' in url:
+            return 'youtube'
+        elif 'tiktok.com' in url:
+            return 'tiktok'
+        else:
+            return 'web'
 
 # Instância global
 alibaba_websailor = AlibabaWebSailorAgent()

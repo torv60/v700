@@ -21,7 +21,8 @@ class LocalFileManager:
     def __init__(self):
         """Inicializa o gerenciador de arquivos locais"""
         self.base_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'analyses_data')
-        self._ensure_directory_structure()
+        # Não cria diretórios durante a inicialização para evitar problemas de quota de disco
+        # Os diretórios serão criados conforme necessário
         
         logger.info(f"Local File Manager inicializado: {self.base_dir}")
     

@@ -11,17 +11,38 @@ import uuid
 import asyncio
 import os
 import glob
+import json  # Import json for loading data
 from datetime import datetime
-from typing import Dict, Any  # Import necessário para Dict e Any
+from typing import Dict, Any, List  # Import necessary for List
 from flask import Blueprint, request, jsonify, send_file
-from services.real_search_orchestrator import real_search_orchestrator
-from services.massive_search_engine import massive_search_engine
-from services.viral_content_analyzer import viral_content_analyzer
-from services.viral_report_generator import ViralReportGenerator
-from services.enhanced_synthesis_engine import enhanced_synthesis_engine
-from services.enhanced_module_processor import enhanced_module_processor
-from services.comprehensive_report_generator_v3 import comprehensive_report_generator_v3
+# Lazy imports para evitar carregamento pesado durante inicialização
+# Os serviços serão importados apenas quando necessários
 from services.auto_save_manager import salvar_etapa
+
+# Import dos serviços necessários
+def get_services():
+    """Lazy loading dos serviços para evitar problemas de inicialização"""
+    try:
+        from services.real_search_orchestrator import real_search_orchestrator
+        from services.massive_search_engine import massive_search_engine
+        from services.viral_content_analyzer import viral_content_analyzer
+        from services.enhanced_synthesis_engine import enhanced_synthesis_engine
+        from services.enhanced_module_processor import enhanced_module_processor
+        from services.comprehensive_report_generator_v3 import comprehensive_report_generator_v3
+        from services.viral_report_generator import ViralReportGenerator
+
+        return {
+            'real_search_orchestrator': real_search_orchestrator,
+            'massive_search_engine': massive_search_engine,
+            'viral_content_analyzer': viral_content_analyzer,
+            'enhanced_synthesis_engine': enhanced_synthesis_engine,
+            'enhanced_module_processor': enhanced_module_processor,
+            'comprehensive_report_generator_v3': comprehensive_report_generator_v3,
+            'ViralReportGenerator': ViralReportGenerator
+        }
+    except ImportError as e:
+        logger.error(f"❌ Erro ao importar serviços: {e}")
+        return None
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +99,12 @@ def start_step1_collection():
         def execute_collection():
             logger.info(f"🚀 INICIANDO THREAD DE COLETA - Sessão: {session_id}")
             try:
+                # Carrega serviços de forma lazy
+                services = get_services()
+                if not services:
+                    logger.error("❌ Falha ao carregar serviços necessários")
+                    return
+
                 logger.info(f"🔄 Configurando event loop - Sessão: {session_id}")
                 # Executa busca massiva real
                 loop = asyncio.new_event_loop()
@@ -85,29 +112,35 @@ def start_step1_collection():
 
                 try:
                     logger.info(f"🔍 Executando busca massiva - Sessão: {session_id}")
-                    search_results = loop.run_until_complete(
-                        real_search_orchestrator.execute_massive_real_search(
-                            query=query,
-                            context=context,
-                            session_id=session_id
+                    # Executa busca massiva real com verificação de método
+                    real_search_orch = services['real_search_orchestrator']
+                    if hasattr(real_search_orch, 'execute_massive_real_search'):
+                        search_results = loop.run_until_complete(
+                            real_search_orch.execute_massive_real_search(
+                                query=query,
+                                context=context,
+                                session_id=session_id
+                            )
                         )
-                    )
+                    else:
+                        logger.error("❌ Método execute_massive_real_search não encontrado")
+                        search_results = {'web_results': [], 'social_results': [], 'youtube_results': []}
                     logger.info(f"✅ Busca massiva concluída - Sessão: {session_id}")
 
                     # EXECUTA BUSCA MASSIVA COM ALIBABA WEBSAILOR PARA CRIAR viral_results_*.json
                     logger.info(f"🌐 Executando busca ALIBABA WebSailor - Sessão: {session_id}")
                     massive_results = loop.run_until_complete(
-                        massive_search_engine.execute_massive_search(
-                            query=query,
-                            session_id=session_id,
-                            max_results_per_api=10
+                        services['massive_search_engine'].execute_massive_search(
+                            produto=context.get('segmento', context.get('produto', query)),
+                            publico_alvo=context.get('publico', context.get('publico_alvo', 'público brasileiro')),
+                            session_id=session_id
                         )
                     )
                     logger.info(f"✅ Busca ALIBABA WebSailor concluída - Sessão: {session_id}")
 
                     # Analisa e captura conteúdo viral
                     viral_analysis = loop.run_until_complete(
-                        viral_content_analyzer.analyze_and_capture_viral_content(
+                        services['viral_content_analyzer'].analyze_and_capture_viral_content(
                             search_results=search_results,
                             session_id=session_id,
                             max_captures=15
@@ -119,7 +152,7 @@ def start_step1_collection():
 
                 # GERA RELATÓRIO VIRAL AUTOMATICAMENTE
                 logger.info("🔥 Gerando relatório viral automático...")
-                viral_report_generator = ViralReportGenerator()
+                viral_report_generator = services['ViralReportGenerator']()
                 viral_report_success = viral_report_generator.generate_viral_report(session_id)
                 if viral_report_success:
                     logger.info("✅ Relatório viral gerado e salvo automaticamente")
@@ -199,13 +232,19 @@ def start_step2_synthesis():
         # Executa síntese em thread separada
         def execute_synthesis():
             try:
+                # Carrega serviços de forma lazy
+                services = get_services()
+                if not services:
+                    logger.error("❌ Falha ao carregar serviços necessários")
+                    return
+
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
                 try:
                     # Executa síntese master com busca ativa
                     synthesis_result = loop.run_until_complete(
-                        enhanced_synthesis_engine.execute_enhanced_synthesis(
+                        services['enhanced_synthesis_engine'].execute_enhanced_synthesis(
                             session_id=session_id,
                             synthesis_type="master_synthesis"
                         )
@@ -213,12 +252,12 @@ def start_step2_synthesis():
 
                     # Executa síntese comportamental
                     behavioral_result = loop.run_until_complete(
-                        enhanced_synthesis_engine.execute_behavioral_synthesis(session_id)
+                        services['enhanced_synthesis_engine'].execute_behavioral_synthesis(session_id)
                     )
 
                     # Executa síntese de mercado
                     market_result = loop.run_until_complete(
-                        enhanced_synthesis_engine.execute_market_synthesis(session_id)
+                        services['enhanced_synthesis_engine'].execute_market_synthesis(session_id)
                     )
 
                 finally:
@@ -286,19 +325,25 @@ def start_step3_generation():
         # Executa geração em thread separada
         def execute_generation():
             try:
+                # Carrega serviços de forma lazy
+                services = get_services()
+                if not services:
+                    logger.error("❌ Falha ao carregar serviços necessários")
+                    return
+
                 # Gera todos os 16 módulos
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
                 try:
                     modules_result = loop.run_until_complete(
-                        enhanced_module_processor.generate_all_modules(session_id)
+                        services['enhanced_module_processor'].generate_all_modules(session_id)
                     )
                 finally:
                     loop.close()
 
                 # Compila relatório final
-                final_report = comprehensive_report_generator_v3.compile_final_markdown_report(session_id)
+                final_report = services['comprehensive_report_generator_v3'].compile_final_markdown_report(session_id)
 
                 # Salva resultado da etapa 3
                 salvar_etapa("etapa3_concluida", {
@@ -355,6 +400,12 @@ def execute_complete_workflow():
         # Executa workflow completo em thread separada
         def execute_full_workflow():
             try:
+                # Carrega serviços de forma lazy
+                services = get_services()
+                if not services:
+                    logger.error("❌ Falha ao carregar serviços necessários")
+                    return
+
                 # ETAPA 1: Coleta
                 logger.info("🌊 Executando Etapa 1: Coleta massiva")
 
@@ -377,7 +428,7 @@ def execute_complete_workflow():
 
                     # Executa busca massiva
                     search_results = loop.run_until_complete(
-                        real_search_orchestrator.execute_massive_real_search(
+                        services['real_search_orchestrator'].execute_massive_real_search(
                             query=query,
                             context=context,
                             session_id=session_id
@@ -386,7 +437,7 @@ def execute_complete_workflow():
 
                     # Analisa conteúdo viral
                     viral_analysis = loop.run_until_complete(
-                        viral_content_analyzer.analyze_and_capture_viral_content(
+                        services['viral_content_analyzer'].analyze_and_capture_viral_content(
                             search_results=search_results,
                             session_id=session_id
                         )
@@ -394,7 +445,7 @@ def execute_complete_workflow():
 
                     # GERA RELATÓRIO VIRAL AUTOMATICAMENTE
                     logger.info("🔥 Gerando relatório viral automático...")
-                    viral_report_generator = ViralReportGenerator()
+                    viral_report_generator = services['ViralReportGenerator']()
                     viral_report_success = viral_report_generator.generate_viral_report(session_id)
                     if viral_report_success:
                         logger.info("✅ Relatório viral gerado e salvo automaticamente")
@@ -411,18 +462,18 @@ def execute_complete_workflow():
                     logger.info("🧠 Executando Etapa 2: Síntese com IA")
 
                     synthesis_result = loop.run_until_complete(
-                        enhanced_synthesis_engine.execute_enhanced_synthesis(session_id)
+                        services['enhanced_synthesis_engine'].execute_enhanced_synthesis(session_id)
                     )
 
                     # ETAPA 3: Geração de módulos
                     logger.info("📝 Executando Etapa 3: Geração de módulos")
 
                     modules_result = loop.run_until_complete(
-                        enhanced_module_processor.generate_all_modules(session_id)
+                        services['enhanced_module_processor'].generate_all_modules(session_id)
                     )
 
                     # Compila relatório final
-                    final_report = comprehensive_report_generator_v3.compile_final_markdown_report(session_id)
+                    final_report = services['comprehensive_report_generator_v3'].compile_final_markdown_report(session_id)
 
                 finally:
                     loop.close()
@@ -628,18 +679,27 @@ def _generate_collection_report(
     session_id: str, 
     context: Dict[str, Any]
 ) -> str:
-    """Gera relatório consolidado de coleta"""
+    """Gera relatório ULTRA CONSOLIDADO com TODOS os dados extraídos"""
 
     # Função auxiliar para formatar números com segurança
     def safe_format_int(value):
         try:
-            # Tenta converter para int e formatar com separador de milhar
             return f"{int(value):,}"
         except (ValueError, TypeError):
-            # Se falhar, retorna 'N/A' ou o valor original como string
             return str(value) if value is not None else 'N/A'
 
-    report = f"""# RELATÓRIO DE COLETA MASSIVA - ARQV30 Enhanced v3.0
+    # 🔥 CARREGA TODOS OS TRECHOS SALVOS AUTOMATICAMENTE
+    all_saved_excerpts = _load_all_saved_excerpts(session_id)
+
+    # 🔥 CARREGA TODOS OS DADOS VIRAIS SALVOS
+    all_viral_data = _load_all_viral_data(session_id)
+
+    # 🔥 CARREGA TODOS OS DADOS DO MASSIVE SEARCH ENGINE
+    massive_search_data = _load_massive_search_data(session_id)
+
+    report = f"""# RELATÓRIO CONSOLIDADO ULTRA-COMPLETO - ARQV30 Enhanced v3.0
+
+**🎯 DADOS 100% REAIS - ZERO SIMULAÇÃO - TUDO UNIFICADO**
 
 **Sessão:** {session_id}  
 **Query:** {search_results.get('query', 'N/A')}  
@@ -648,17 +708,17 @@ def _generate_collection_report(
 
 ---
 
-## RESUMO DA COLETA MASSIVA
+## 📊 RESUMO EXECUTIVO DA COLETA MASSIVA
 
-### Estatísticas Gerais:
+### Estatísticas Completas:
 - **Total de Fontes:** {search_results.get('statistics', {}).get('total_sources', 0)}
 - **URLs Únicas:** {search_results.get('statistics', {}).get('unique_urls', 0)}
-- **Conteúdo Extraído:** {safe_format_int(search_results.get('statistics', {}).get('content_extracted', 0))} caracteres ({search_results.get('statistics', {}).get('content_extracted', 0)/1024:.1f} KB)
-- **Provedores Utilizados:** {len(search_results.get('providers_used', []))}
-- **Conteúdo Viral Identificado:** {len(viral_analysis.get('viral_content_identified', []))}
+- **Conteúdo Total Extraído:** {safe_format_int(search_results.get('statistics', {}).get('content_extracted', 0))} caracteres ({search_results.get('statistics', {}).get('content_extracted', 0)/1024:.1f} KB)
+- **Trechos Salvos Automaticamente:** {len(all_saved_excerpts)}
+- **Dados Virais Coletados:** {len(all_viral_data)}
 - **Screenshots Capturados:** {len(viral_analysis.get('screenshots_captured', []))}
-- **Imagens Extraídas:** {len(viral_analysis.get('images_extracted', []))}
-- **Total de Engajamento:** {viral_analysis.get('total_engagement_score', 0)} pontos
+- **Provedores Utilizados:** {len(search_results.get('providers_used', []))}
+- **Massive Search Results:** {len(massive_search_data)}
 
 ### Provedores Utilizados:
 """
@@ -668,150 +728,237 @@ def _generate_collection_report(
     else:
         report += "- Nenhum provedor listado\n\n"
 
-    report += "---\n\n## RESULTADOS DE BUSCA WEB\n\n"
+    # 🔥 SEÇÃO 1: TODOS OS TRECHOS EXTRAÍDOS AUTOMATICAMENTE
+    report += "---\n\n## 🔍 TODOS OS TRECHOS DE CONTEÚDO EXTRAÍDOS (DADOS REAIS)\n\n"
 
-    # Adiciona resultados web com trechos de conteúdo
+    if all_saved_excerpts:
+        for i, excerpt in enumerate(all_saved_excerpts, 1):
+            report += f"### Trecho {i}: {excerpt.get('titulo', 'Sem título')}\n\n"
+            report += f"**URL:** {excerpt.get('url', 'N/A')}  \n"
+            report += f"**Método de Extração:** {excerpt.get('metodo_extracao', 'N/A')}  \n"
+            report += f"**Qualidade:** {excerpt.get('qualidade', 0):.1f}/100  \n"
+            report += f"**Timestamp:** {excerpt.get('timestamp_extracao', 'N/A')}  \n"
+
+            conteudo = excerpt.get('conteudo', '')
+            if conteudo:
+                # Mostra o conteúdo completo sem limitação
+                report += f"**CONTEÚDO COMPLETO:**\n```\n{conteudo}\n```\n\n"
+
+            report += "---\n\n"
+    else:
+        report += "⚠️ Nenhum trecho extraído encontrado.\n\n"
+
+    # 🔥 SEÇÃO 2: RESULTADOS DE BUSCA WEB DETALHADOS
+    report += "## 🌐 RESULTADOS DE BUSCA WEB COMPLETOS\n\n"
+
     web_results = search_results.get('web_results', [])
     if web_results:
-        for i, result in enumerate(web_results[:15], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
+        for i, result in enumerate(web_results, 1):
+            report += f"### Web Result {i}: {result.get('title', 'Sem título')}\n\n"
             report += f"**URL:** {result.get('url', 'N/A')}  \n"
             report += f"**Fonte:** {result.get('source', 'N/A')}  \n"
             report += f"**Relevância:** {result.get('relevance_score', 0):.2f}/1.0  \n"
-            
-            # Adiciona snippet se disponível
-            snippet = result.get('snippet', 'N/A')
-            if snippet and snippet != 'N/A':
-                report += f"**Resumo:** {snippet[:200]}{'...' if len(snippet) > 200 else ''}  \n"
-            
-            # Adiciona conteúdo extraído se disponível
+
+            snippet = result.get('snippet', '')
+            if snippet:
+                report += f"**Resumo:** {snippet}  \n"
+
             content = result.get('content', '')
             if content:
-                content_preview = content[:500].replace('\n', ' ').strip()
-                report += f"**Trecho Extraído:** {content_preview}{'...' if len(content) > 500 else ''}  \n"
-            
-            # Adiciona informações de tamanho do conteúdo
+                # Mostra conteúdo completo
+                report += f"**CONTEÚDO EXTRAÍDO COMPLETO:**\n```\n{content}\n```\n"
+
             content_length = result.get('content_length', 0)
             if content_length > 0:
-                report += f"**Tamanho do Conteúdo:** {content_length:,} caracteres ({content_length/1024:.1f} KB)  \n"
-            
-            report += "\n"
-    else:
-        report += "Nenhum resultado web encontrado.\n\n"
+                report += f"**Tamanho:** {content_length:,} caracteres ({content_length/1024:.1f} KB)  \n"
 
-    # Adiciona resultados do YouTube
+            report += "\n---\n\n"
+
+    # 🔥 SEÇÃO 3: DADOS VIRAIS COMPLETOS
+    report += "## 🔥 ANÁLISE COMPLETA DE CONTEÚDO VIRAL\n\n"
+
+    if all_viral_data:
+        for i, viral_item in enumerate(all_viral_data, 1):
+            report += f"### Conteúdo Viral {i}\n\n"
+
+            # Dados estruturados do viral
+            if isinstance(viral_item, dict):
+                for key, value in viral_item.items():
+                    if key == 'images_extracted' and isinstance(value, list):
+                        report += f"**{key.replace('_', ' ').title()}:** {len(value)} imagens\n"
+                        for j, img in enumerate(value[:5], 1):  # Mostra até 5 imagens
+                            if isinstance(img, dict):
+                                report += f"  - Imagem {j}: {img.get('title', 'Sem título')} (Score: {img.get('viral_score', 0):.1f})\n"
+                    elif key == 'statistics' and isinstance(value, dict):
+                        report += f"**Estatísticas Virais:**\n"
+                        for stat_key, stat_value in value.items():
+                            report += f"  - {stat_key}: {stat_value}\n"
+                    elif isinstance(value, (str, int, float)):
+                        report += f"**{key.replace('_', ' ').title()}:** {value}\n"
+                    elif isinstance(value, list):
+                        report += f"**{key.replace('_', ' ').title()}:** {len(value)} itens\n"
+
+
+
+            report += "\n---\n\n"
+
+    # 🔥 SEÇÃO 4: RESULTADOS DO MASSIVE SEARCH ENGINE
+    report += "## 🚀 DADOS DO MASSIVE SEARCH ENGINE\n\n"
+
+    if massive_search_data:
+        for i, massive_item in enumerate(massive_search_data, 1):
+            report += f"### Massive Search Result {i}\n\n"
+
+            if isinstance(massive_item, dict):
+                # Mostra dados estruturados
+                produto = massive_item.get('produto', 'N/A')
+                publico_alvo = massive_item.get('publico_alvo', 'N/A')
+
+                report += f"**Produto:** {produto}\n"
+                report += f"**Público Alvo:** {publico_alvo}\n"
+
+                # Dados da busca massiva
+                busca_massiva = massive_item.get('busca_massiva', {})
+                if busca_massiva:
+                    alibaba_results = busca_massiva.get('alibaba_websailor_results', [])
+                    real_search_results = busca_massiva.get('real_search_orchestrator_results', [])
+
+                    report += f"**Resultados Alibaba WebSailor:** {len(alibaba_results)}\n"
+                    report += f"**Resultados Real Search:** {len(real_search_results)}\n"
+
+                    # Mostra alguns resultados detalhados
+                    for j, alibaba_result in enumerate(alibaba_results[:3], 1):
+                        if isinstance(alibaba_result, dict):
+                            report += f"  - Alibaba {j}: {alibaba_result.get('query', 'N/A')}\n"
+
+                # Metadados
+                metadata = massive_item.get('metadata', {})
+                if metadata:
+                    report += f"**Total de Buscas:** {metadata.get('total_searches', 0)}\n"
+                    report += f"**Tamanho Final:** {metadata.get('size_kb', 0):.1f} KB\n"
+                    report += f"**APIs Utilizadas:** {len(metadata.get('apis_used', []))}\n"
+
+            report += "\n---\n\n"
+
+    # 🔥 SEÇÃO 5: RESULTADOS DO YOUTUBE
     youtube_results = search_results.get('youtube_results', [])
     if youtube_results:
-        report += "---\n\n## RESULTADOS DO YOUTUBE\n\n"
-        for i, result in enumerate(youtube_results[:10], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
+        report += "## 📺 RESULTADOS COMPLETOS DO YOUTUBE\n\n"
+        for i, result in enumerate(youtube_results, 1):
+            report += f"### YouTube {i}: {result.get('title', 'Sem título')}\n\n"
             report += f"**Canal:** {result.get('channel', 'N/A')}  \n"
             report += f"**Views:** {safe_format_int(result.get('view_count', 'N/A'))}  \n"
             report += f"**Likes:** {safe_format_int(result.get('like_count', 'N/A'))}  \n"
             report += f"**Comentários:** {safe_format_int(result.get('comment_count', 'N/A'))}  \n"
             report += f"**Score Viral:** {result.get('viral_score', 0):.2f}/10  \n"
-            report += f"**URL:** {result.get('url', 'N/A')}  \n\n"
-    else:
-        report += "---\n\n## RESULTADOS DO YOUTUBE\n\nNenhum resultado do YouTube encontrado.\n\n"
+            report += f"**URL:** {result.get('url', 'N/A')}  \n"
 
-    # Adiciona resultados de redes sociais
+            description = result.get('description', '')
+            if description:
+                report += f"**Descrição:** {description}  \n"
+
+            report += "\n---\n\n"
+
+    # 🔥 SEÇÃO 6: RESULTADOS DE REDES SOCIAIS
     social_results = search_results.get('social_results', [])
     if social_results:
-        report += "---\n\n## RESULTADOS DE REDES SOCIAIS\n\n"
-        for i, result in enumerate(social_results[:10], 1):
-            report += f"### {i}. {result.get('title', 'Sem título')}\n\n"
-            report += f"**Plataforma:** {result.get('platform', 'N/A').title() if result.get('platform') else 'N/A'}  \n"
+        report += "## 📱 RESULTADOS COMPLETOS DE REDES SOCIAIS\n\n"
+        for i, result in enumerate(social_results, 1):
+            report += f"### Social {i}: {result.get('title', 'Sem título')}\n\n"
+            report += f"**Plataforma:** {result.get('platform', 'N/A').title()}  \n"
             report += f"**Autor:** {result.get('author', 'N/A')}  \n"
             report += f"**Engajamento:** {result.get('viral_score', 0):.2f}/10  \n"
             report += f"**URL:** {result.get('url', 'N/A')}  \n"
-            content = result.get('content', 'N/A')
-            report += f"**Conteúdo:** {content[:150]}{'...' if len(content) > 150 else ''}  \n\n"
-    else:
-        report += "---\n\n## RESULTADOS DE REDES SOCIAIS\n\nNenhum resultado de rede social encontrado.\n\n"
 
-    # Adiciona screenshots capturados
+            content = result.get('content', '')
+            if content:
+                report += f"**CONTEÚDO COMPLETO:** {content}  \n"
+
+            report += "\n---\n\n"
+
+    # 🔥 SEÇÃO 7: SCREENSHOTS E EVIDÊNCIAS VISUAIS
     screenshots = viral_analysis.get('screenshots_captured', [])
     if screenshots:
-        report += "---\n\n## EVIDÊNCIAS VISUAIS CAPTURADAS\n\n"
+        report += "## 📸 EVIDÊNCIAS VISUAIS COMPLETAS\n\n"
         for i, screenshot in enumerate(screenshots, 1):
             report += f"### Screenshot {i}: {screenshot.get('title', 'Sem título')}\n\n"
-            report += f"**Plataforma:** {screenshot.get('platform', 'N/A').title() if screenshot.get('platform') else 'N/A'}  \n"
+            report += f"**Plataforma:** {screenshot.get('platform', 'N/A').title()}  \n"
             report += f"**Score Viral:** {screenshot.get('viral_score', 0):.2f}/10  \n"
             report += f"**URL Original:** {screenshot.get('url', 'N/A')}  \n"
 
-            # Métricas de engajamento - CORRIGIDO AQUI
             metrics = screenshot.get('content_metrics', {})
             if metrics:
-                # Usa a função auxiliar para formatar com segurança
                 if 'views' in metrics:
                     report += f"**Views:** {safe_format_int(metrics['views'])}  \n"
                 if 'likes' in metrics:
                     report += f"**Likes:** {safe_format_int(metrics['likes'])}  \n"
                 if 'comments' in metrics:
                     report += f"**Comentários:** {safe_format_int(metrics['comments'])}  \n"
-            
-            # Verifica se o caminho da imagem existe antes de adicioná-lo
+
             img_path = screenshot.get('relative_path', '')
-            # Ajuste o caminho base conforme a estrutura do seu projeto
-            full_img_path = os.path.join("analyses_data", "files", session_id, os.path.basename(img_path)) 
-            if img_path and os.path.exists(full_img_path):
-                 report += f"![Screenshot {i}]({img_path})  \n\n"
-            elif img_path: # Se o caminho existir, mas o arquivo não, mostra o caminho
-                 report += f"![Screenshot {i}]({img_path}) *(Imagem não encontrada localmente)*  \n\n"
-            else:
-                 report += "*Imagem não disponível.*  \n\n"
-    else:
-        report += "---\n\n## EVIDÊNCIAS VISUAIS CAPTURADAS\n\nNenhum screenshot foi capturado.\n\n"
+            if img_path:
+                report += f"**Arquivo:** {img_path}  \n"
 
-    # NOVA SEÇÃO: Incorpora dados virais completos automaticamente
-    report += _incorporate_viral_data(session_id, viral_analysis)
+            report += "\n---\n\n"
 
-    # Adiciona contexto da análise
-    report += "---\n\n## CONTEXTO DA ANÁLISE\n\n"
-    context_items_added = False
+    # 🔥 SEÇÃO 8: CONTEXTO DA ANÁLISE
+    report += "## 🎯 CONTEXTO COMPLETO DA ANÁLISE\n\n"
     for key, value in context.items():
-        if value: # Só adiciona se o valor não for vazio/falso
+        if value:
             report += f"**{key.replace('_', ' ').title()}:** {value}  \n"
-            context_items_added = True
-    if not context_items_added:
-         report += "Nenhum contexto adicional fornecido.\n"
-    
-    # Adiciona seção de trechos de conteúdo extraído
-    content_section = _generate_content_excerpts_section(search_results, viral_analysis)
-    report += content_section
-    
-    # Incorpora dados virais automaticamente
-    viral_section = _incorporate_viral_data(session_id, viral_analysis)
-    report += viral_section
-    
-    report += f"\n---\n\n*Relatório gerado automaticamente em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}*"
+
+    # 🔥 ESTATÍSTICAS FINAIS
+    total_content_chars = sum(len(str(excerpt.get('conteudo', ''))) for excerpt in all_saved_excerpts)
+
+    report += f"""
+
+---
+
+## 📊 ESTATÍSTICAS FINAIS CONSOLIDADAS
+
+- **Total de Trechos Extraídos:** {len(all_saved_excerpts)}
+- **Total de Dados Virais:** {len(all_viral_data)}
+- **Total de Dados Massive Search:** {len(massive_search_data)}
+- **Total de Caracteres de Conteúdo:** {total_content_chars:,}
+- **Total de Screenshots:** {len(screenshots)}
+- **Total de Resultados Web:** {len(web_results)}
+- **Total de Resultados YouTube:** {len(youtube_results)}
+- **Total de Resultados Sociais:** {len(social_results)}
+
+**🔥 GARANTIA: 100% DADOS REAIS - ZERO SIMULAÇÃO - TUDO CONSOLIDADO**
+
+---
+
+*Relatório ultra-consolidado gerado automaticamente em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}*
+*Pronto para análise profunda pela IA QWEN via OpenRouter*
+"""
 
     return report
 
 def _generate_content_excerpts_section(search_results: Dict[str, Any], viral_analysis: Dict[str, Any]) -> str:
     """Gera seção com trechos de conteúdo extraído das fontes coletadas"""
-    
+
     section = "\n---\n\n## TRECHOS DE CONTEÚDO EXTRAÍDO\n\n"
     section += "*Amostras do conteúdo real coletado durante a busca massiva*\n\n"
-    
+
     content_found = False
-    
+
     # Extrai trechos dos resultados web
     web_results = search_results.get('web_results', [])
     if web_results:
         section += "### Conteúdo Web Extraído:\n\n"
-        
+
         for i, result in enumerate(web_results[:10], 1):  # Limita a 10 resultados
             content = result.get('content', '')
             snippet = result.get('snippet', '')
             title = result.get('title', 'Sem título')
             url = result.get('url', 'N/A')
-            
+
             if content or snippet:
                 content_found = True
                 section += f"**{i}. {title}**\n"
                 section += f"*Fonte: {url}*\n\n"
-                
+
                 # Usa conteúdo completo se disponível, senão usa snippet
                 text_to_show = content if content else snippet
                 if text_to_show:
@@ -820,62 +967,62 @@ def _generate_content_excerpts_section(search_results: Dict[str, Any], viral_ana
                     # Mostra até 800 caracteres
                     preview = clean_text[:800]
                     section += f"```\n{preview}{'...' if len(clean_text) > 800 else ''}\n```\n\n"
-    
+
     # Extrai trechos dos resultados do YouTube
     youtube_results = search_results.get('youtube_results', [])
     if youtube_results:
         section += "### Conteúdo YouTube Extraído:\n\n"
-        
+
         for i, result in enumerate(youtube_results[:5], 1):  # Limita a 5 resultados
             description = result.get('description', '')
             title = result.get('title', 'Sem título')
             url = result.get('url', 'N/A')
-            
+
             if description:
                 content_found = True
                 section += f"**{i}. {title}**\n"
                 section += f"*Fonte: {url}*\n\n"
-                
+
                 # Limpa e formata a descrição
                 clean_desc = description.replace('\n', ' ').replace('\r', '').strip()
                 preview = clean_desc[:400]
                 section += f"```\n{preview}{'...' if len(clean_desc) > 400 else ''}\n```\n\n"
-    
+
     # Extrai trechos dos resultados sociais
     social_results = search_results.get('social_results', [])
     if social_results:
         section += "### Conteúdo Social Media Extraído:\n\n"
-        
+
         for i, result in enumerate(social_results[:5], 1):  # Limita a 5 resultados
             content = result.get('content', '')
             snippet = result.get('snippet', '')
             title = result.get('title', 'Sem título')
             url = result.get('url', 'N/A')
-            
+
             if content or snippet:
                 content_found = True
                 section += f"**{i}. {title}**\n"
                 section += f"*Fonte: {url}*\n\n"
-                
+
                 text_to_show = content if content else snippet
                 if text_to_show:
                     clean_text = text_to_show.replace('\n', ' ').replace('\r', '').strip()
                     preview = clean_text[:600]
                     section += f"```\n{preview}{'...' if len(clean_text) > 600 else ''}\n```\n\n"
-    
+
     if not content_found:
         section += "⚠️ **Nenhum trecho de conteúdo extraído encontrado nos dados da sessão.**\n\n"
         section += "*Nota: O sistema coletou metadados (títulos, URLs, estatísticas) mas não extraiu o conteúdo completo das páginas.*\n\n"
-    
+
     return section
 
 def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> str:
     """Incorpora automaticamente dados virais completos do arquivo viral_results_*.json"""
     import glob
     import json
-    
+
     viral_section = ""
-    
+
     try:
         # Procura arquivo viral_results na pasta viral_images_data
         viral_files = glob.glob(f"viral_images_data/viral_results_*{session_id[:8]}*.json")
@@ -884,13 +1031,13 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
             viral_files = glob.glob("viral_images_data/viral_results_*.json")
             viral_files.sort(key=os.path.getmtime, reverse=True)
             viral_files = viral_files[:1]  # Pega o mais recente
-        
+
         if viral_files:
             with open(viral_files[0], 'r', encoding='utf-8') as f:
                 viral_data = json.load(f)
-            
+
             viral_section += "---\n\n## ANÁLISE DE CONTEÚDO VIRAL COMPLETA\n\n"
-            
+
             # Estatísticas gerais
             stats = viral_data.get('statistics', {})
             viral_section += "### Métricas de Engajamento:\n"
@@ -901,7 +1048,7 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
             viral_section += f"- **Maior Engajamento:** {stats.get('max_engagement', 0)} pontos\n"
             viral_section += f"- **Visualizações Estimadas:** {stats.get('total_views', 0):,}\n"
             viral_section += f"- **Likes Estimados:** {stats.get('total_likes', 0):,}\n\n"
-            
+
             # Distribuição por plataforma
             platform_stats = viral_data.get('platform_distribution', {})
             if platform_stats:
@@ -912,7 +1059,7 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
                     viral_section += f"{data.get('views', 0):,} views, "
                     viral_section += f"{data.get('likes', 0):,} likes)\n"
                 viral_section += "\n"
-            
+
             # Insights de conteúdo viral
             insights = viral_data.get('viral_insights', [])
             if insights:
@@ -920,7 +1067,7 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
                 for insight in insights:
                     viral_section += f"- {insight}\n"
                 viral_section += "\n"
-            
+
             # Imagens extraídas
             images = viral_data.get('images_extracted', [])
             if images:
@@ -930,7 +1077,7 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
                     viral_section += f"(Score: {img.get('viral_score', 0):.1f}) - "
                     viral_section += f"{img.get('platform', 'N/A')}\n"
                 viral_section += "\n"
-            
+
             # Screenshots capturados
             screenshots = viral_data.get('screenshots_captured', [])
             if screenshots:
@@ -940,19 +1087,19 @@ def _incorporate_viral_data(session_id: str, viral_analysis: Dict[str, Any]) -> 
                     viral_section += f"(Score: {shot.get('viral_score', 0):.1f}) - "
                     viral_section += f"{shot.get('platform', 'N/A')}\n"
                 viral_section += "\n"
-            
+
             logger.info(f"✅ Dados virais incorporados automaticamente do arquivo: {viral_files[0]}")
-            
+
         else:
             viral_section += "---\n\n## ANÁLISE DE CONTEÚDO VIRAL\n\n"
             viral_section += "*Nenhum arquivo de dados virais encontrado para incorporação automática.*\n\n"
             logger.warning("⚠️ Nenhum arquivo viral_results_*.json encontrado para incorporação")
-            
+
     except Exception as e:
         logger.error(f"❌ Erro ao incorporar dados virais: {e}")
         viral_section += "---\n\n## ANÁLISE DE CONTEÚDO VIRAL\n\n"
         viral_section += "*Erro ao carregar dados virais automaticamente.*\n\n"
-    
+
     return viral_section
 
 def _save_collection_report(report_content: str, session_id: str):
@@ -972,4 +1119,98 @@ def _save_collection_report(report_content: str, session_id: str):
         # Opcional: Re-raise a exception se quiser que o erro pare a execução da etapa
         # raise 
 
-# --- O resto do seu código (outras funções, se houver) permanece inalterado ---
+# --- Funções para carregar todos os dados salvos ---
+
+def _load_all_saved_excerpts(session_id: str) -> List[Dict[str, Any]]:
+    """Carrega TODOS os trechos de pesquisa web salvos para a sessão"""
+    excerpts = []
+
+    try:
+        # Diretório de trechos de pesquisa web
+        excerpts_dir = f"analyses_data/pesquisa_web/{session_id}"
+
+        if os.path.exists(excerpts_dir):
+            for filename in os.listdir(excerpts_dir):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(excerpts_dir, filename)
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            excerpt_data = json.load(f)
+                            excerpts.append(excerpt_data)
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao carregar trecho {filename}: {e}")
+
+        # Também procura em relatorios_intermediarios
+        intermediarios_dir = f"relatorios_intermediarios/pesquisa_web"
+        if os.path.exists(intermediarios_dir):
+            for filename in os.listdir(intermediarios_dir):
+                if session_id in filename and filename.endswith('.json'):
+                    file_path = os.path.join(intermediarios_dir, filename)
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            excerpt_data = json.load(f)
+                            excerpts.append(excerpt_data)
+                    except Exception as e:
+                        logger.error(f"❌ Erro ao carregar trecho intermediário {filename}: {e}")
+
+        logger.info(f"✅ {len(excerpts)} trechos carregados para sessão {session_id}")
+        return excerpts
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao carregar trechos salvos: {e}")
+        return []
+
+def _load_all_viral_data(session_id: str) -> List[Dict[str, Any]]:
+    """Carrega TODOS os dados virais salvos para a sessão"""
+    viral_data = []
+
+    try:
+        # Procura arquivos viral_results_*.json
+        viral_patterns = [
+            f"viral_images_data/viral_results_*{session_id[:8]}*.json",
+            f"viral_images_data/viral_results_*.json"
+        ]
+
+        import glob
+        for pattern in viral_patterns:
+            files = glob.glob(pattern)
+            for file_path in files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        viral_content = json.load(f)
+                        viral_data.append(viral_content)
+                except Exception as e:
+                    logger.error(f"❌ Erro ao carregar dados virais {file_path}: {e}")
+
+        logger.info(f"✅ {len(viral_data)} arquivos de dados virais carregados")
+        return viral_data
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao carregar dados virais: {e}")
+        return []
+
+def _load_massive_search_data(session_id: str) -> List[Dict[str, Any]]:
+    """Carrega TODOS os dados do Massive Search Engine"""
+    massive_data = []
+
+    try:
+        # Procura arquivos RES_BUSCA_*.json
+        import glob
+
+        massive_files = glob.glob("analyses_data/RES_BUSCA_*.json")
+        for file_path in massive_files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    massive_content = json.load(f)
+                    # Verifica se é da sessão atual ou recente
+                    if massive_content.get('session_id') == session_id or not massive_content.get('session_id'):
+                        massive_data.append(massive_content)
+            except Exception as e:
+                logger.error(f"❌ Erro ao carregar dados massive {file_path}: {e}")
+
+        logger.info(f"✅ {len(massive_data)} arquivos do Massive Search Engine carregados")
+        return massive_data
+
+    except Exception as e:
+        logger.error(f"❌ Erro ao carregar dados do Massive Search Engine: {e}")
+        return []

@@ -78,37 +78,39 @@ class EnvironmentLoader:
     def validate_critical_vars(self):
         """Valida variáveis críticas e configura valores padrão"""
 
-        # Variáveis obrigatórias
-        required_vars = {
-            'SUPABASE_URL': 'https://kkjapanfbafrhlfekyks.supabase.co',
-            'SUPABASE_ANON_KEY': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtramFwYW5mYmFmcmhsZmVreWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MjY5NjQsImV4cCI6MjA3MDAwMjk2NH0.e21yvQ8CGIGJrxBZogIW82tOqePd-8zRm9rmMo2PR_Q',
-            'GEMINI_API_KEY': 'AIzaSyCERwa-oIFWewEpuAZt1mxxmm4A3sQo9Es'
-        }
+        # Variáveis obrigatórias (sem valores padrão por segurança)
+        required_vars = [
+            'SUPABASE_URL',
+            'SUPABASE_ANON_KEY',
+            'GEMINI_API_KEY'
+        ]
 
-        # Variáveis recomendadas
-        recommended_vars = {
-            'GROQ_API_KEY': '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',
-            'GOOGLE_SEARCH_KEY': 'AIzaSyDwIFvCvailaG6B7xtysujm0djJn1zlx18',
-            'GOOGLE_CSE_ID': 'c207a51dd04f9488a'
-        }
+        # Variáveis recomendadas (opcionais)
+        recommended_vars = [
+            'GROQ_API_KEY',
+            'GOOGLE_SEARCH_KEY',
+            'GOOGLE_CSE_ID',
+            'OPENAI_API_KEY',
+            'EXA_API_KEY',
+            'SERPAPI_API_KEY',
+            'HUGGINGFACE_API_KEY'
+        ]
 
-        # Configura variáveis obrigatórias se não estiverem definidas
-        for var_name, default_value in required_vars.items():
-            if not os.getenv(var_name):
-                os.environ[var_name] = default_value
-                logger.info(f"✅ {var_name} configurado")
-
-        # Configura variáveis recomendadas se não estiverem definidas
-        for var_name, default_value in recommended_vars.items():
-            if not os.getenv(var_name):
-                os.environ[var_name] = default_value
-                logger.info(f"✅ {var_name} configurado")
-
-        # Verifica se ainda há variáveis ausentes
+        # Verifica variáveis obrigatórias
         self.missing_vars = []
-        for var_name in required_vars.keys():
+        for var_name in required_vars:
             if not os.getenv(var_name):
                 self.missing_vars.append(var_name)
+                logger.warning(f"⚠️ {var_name} não configurado")
+            else:
+                logger.info(f"✅ {var_name} configurado")
+
+        # Verifica variáveis recomendadas (opcionais)
+        for var_name in recommended_vars:
+            if os.getenv(var_name):
+                logger.info(f"✅ {var_name} configurado")
+            else:
+                logger.info(f"ℹ️ {var_name} não configurado (opcional)")
 
         if self.missing_vars:
             logger.error(f"❌ Variáveis críticas ausentes: {', '.join(self.missing_vars)}")

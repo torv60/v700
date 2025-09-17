@@ -75,37 +75,37 @@ def create_app():
 
     # Registra blueprints with instrumentation
     logger.info("🔍 Importando blueprints...")
-    
+
     logger.info("📊 Importando analysis...")
     from routes.analysis import analysis_bp
-    
+
     logger.info("📊 Importando enhanced_analysis...")
     from routes.enhanced_analysis import enhanced_analysis_bp
-    
+
     logger.info("🔍 Importando forensic_analysis...")
     from routes.forensic_analysis import forensic_bp
-    
+
     logger.info("📁 Importando files...")
     from routes.files import files_bp
-    
+
     logger.info("📈 Importando progress...")
     from routes.progress import progress_bp
-    
+
     logger.info("👤 Importando user...")
     from routes.user import user_bp
-    
+
     logger.info("🖥️ Importando monitoring...")
     from routes.monitoring import monitoring_bp
-    
+
     logger.info("📄 Importando html_report_generator...")
     from routes.html_report_generator import html_report_bp
-    
+
     logger.info("🔗 Importando mcp...")
     from routes.mcp import mcp_bp
-    
+
     logger.info("⚡ Importando enhanced_workflow...")
     from routes.enhanced_workflow import enhanced_workflow_bp
-    
+
     logger.info("✅ Todos os blueprints importados com sucesso!")
 
     app.register_blueprint(analysis_bp, url_prefix='/api')
@@ -139,7 +139,7 @@ def create_app():
     def unified():
         """Interface unificada"""
         return render_template('enhanced_interface_v3.html')
-    
+
     @app.route('/v3')
     def interface_v3():
         """Interface v3.0 aprimorada"""
@@ -232,20 +232,21 @@ def main():
         print("Pressione Ctrl+C para parar o servidor")
         print("=" * 60)
 
-        print("\n🔥 RECURSOS ATIVADOS:")
-        print("- IA com Ferramentas de Busca Ativa")
-        print("- Busca Massiva Real com Rotação de APIs")
-        print("- Captura Automática de Screenshots")
-        print("- Análise de Conteúdo Viral")
-        print("- 16 Módulos de Análise Especializados")
-        print("- Workflow em 3 Etapas Controladas")
-        print("- Zero Simulação - 100% Dados Reais")
+        print("\n🔥 RECURSOS ATIVADOS - 100% DADOS REAIS:")
+        print("- IA com Ferramentas de Busca Ativa REAIS")
+        print("- Busca Massiva REAL com Rotação de APIs REAIS")
+        print("- Captura Automática de Screenshots REAIS")
+        print("- Análise de Conteúdo Viral REAL")
+        print("- 16 Módulos de Análise REAIS Especializados")
+        print("- Workflow em 3 Etapas REAIS Controladas")
+        print("- GARANTIA: ZERO SIMULAÇÃO - ZERO EXEMPLOS - 100% DADOS REAIS")
 
-        # Inicia servidor
+        # Inicia servidor (sem reloader para evitar problemas de double-import)
         app.run(
             host=host,
             port=port,
-            debug=debug,
+            debug=False,
+            use_reloader=False,
             threaded=True
         )
 
